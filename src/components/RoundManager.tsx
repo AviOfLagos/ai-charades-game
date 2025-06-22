@@ -4,9 +4,11 @@ import { Timer, Play, Pause, RotateCcw, Check, SkipForward, ArrowRight } from "l
 
 interface RoundManagerProps {
   onNextCard?: () => void;
+  cardsRemaining?: number;
+  onGameEnd?: () => void;
 }
 
-const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard }) => {
+const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining = 0, onGameEnd }) => {
   const players = useGameStore((s) => s.players);
   const currentPlayerIdx = useGameStore((s) => s.currentPlayerIdx);
   const round = useGameStore((s) => s.round);
@@ -22,20 +24,25 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard }) => {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Timer effect
+  // Timer effect with auto-end when cards finished
   useEffect(() => {
-    if (timerActive && timer > 0) {
+    if (timerActive && timer > 0 && cardsRemaining > 0) {
       intervalRef.current = setInterval(() => {
         setTimer(timer - 1);
       }, 1000);
     } else if (timer === 0 && timerActive) {
       setTimerActive(false);
       setTurnEnded(true);
+    } else if (cardsRemaining === 0 && timerActive) {
+      // Auto-end timer when all cards are finished
+      setTimerActive(false);
+      setTurnEnded(true);
+      if (onGameEnd) onGameEnd();
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [timerActive, timer, setTimer, setTimerActive]);
+  }, [timerActive, timer, cardsRemaining, setTimer, setTimerActive, onGameEnd]);
 
   const handleStart = () => {
     setTurnEnded(false);
@@ -72,96 +79,126 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard }) => {
   const canStart = players.length >= 2 && !timerActive && !turnEnded;
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6 border border-indigo-100 w-full max-w-xl mx-auto flex flex-col gap-4 mt-6">
-      <h2 className="font-bold text-indigo-700 text-xl flex items-center gap-2 mb-2">
-        <Timer className="w-6 h-6" />
-        Round Manager
-      </h2>
-      <div className="flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex-1 flex flex-col items-center">
-          <div className="text-lg font-semibold text-violet-700">
-            Round {round} / {maxRounds}
-          </div>
-          <div className="text-sm text-gray-500 mt-1">
-            {players.length > 0 && currentPlayer
-              ? (
-                <>
-                  <span className="font-semibold text-indigo-700">{currentPlayer.name}</span>
-                  <span className="ml-2 text-xs text-violet-700 font-semibold">Score: {currentPlayer.score}</span>
-                </>
-              )
-              : "No players"}
+    <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-gray-900 rounded-3xl shadow-2xl p-8 border border-indigo-500/20 w-full max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-3">
+          <Timer className="w-7 h-7 text-indigo-400" />
+          <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+            Game Controls
+          </span>
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Current Player Info */}
+        <div className="bg-gradient-to-br from-indigo-800/50 to-purple-800/50 rounded-2xl p-6 border border-indigo-400/20">
+          <div className="text-center">
+            <div className="text-indigo-300 text-sm font-semibold mb-2 uppercase tracking-wide">Current Player</div>
+            {currentPlayer ? (
+              <>
+                <div className="text-2xl font-bold text-white mb-1">{currentPlayer.name}</div>
+                <div className="text-indigo-300 text-sm">Score: {currentPlayer.score}</div>
+              </>
+            ) : (
+              <div className="text-gray-400 text-lg">No players</div>
+            )}
           </div>
         </div>
-        <div className="flex-1 flex flex-col items-center">
-          <div className="text-4xl font-mono text-indigo-800 mb-2">
-            {timer}s
+
+        {/* Timer */}
+        <div className="bg-gradient-to-br from-purple-800/50 to-pink-800/50 rounded-2xl p-6 border border-purple-400/20">
+          <div className="text-center">
+            <div className="text-purple-300 text-sm font-semibold mb-2 uppercase tracking-wide">Timer</div>
+            <div className="text-5xl font-mono font-bold text-white mb-4">{timer}s</div>
+            <div className="flex gap-2 justify-center">
+              {!timerActive && !turnEnded ? (
+                <button
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow hover:from-emerald-600 hover:to-teal-600 transition flex items-center gap-2 disabled:opacity-50"
+                  onClick={handleStart}
+                  disabled={!canStart}
+                >
+                  <Play className="w-4 h-4" />
+                  Start
+                </button>
+              ) : (
+                <button
+                  className="px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold rounded-xl shadow hover:from-gray-600 hover:to-gray-700 transition flex items-center gap-2 disabled:opacity-50"
+                  onClick={handlePause}
+                  disabled={!timerActive}
+                >
+                  <Pause className="w-4 h-4" />
+                  Pause
+                </button>
+              )}
+              <button
+                className="px-4 py-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-xl shadow hover:from-slate-600 hover:to-slate-700 transition flex items-center gap-2"
+                onClick={handleReset}
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            {!timerActive && !turnEnded ? (
-              <button
-                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-bold rounded-xl shadow hover:from-indigo-600 hover:to-violet-600 transition flex items-center gap-2"
-                onClick={handleStart}
-                disabled={!canStart}
-              >
-                <Play className="w-5 h-5" />
-                Start
-              </button>
-            ) : (
-              <button
-                className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-xl shadow hover:bg-gray-300 transition flex items-center gap-2"
-                onClick={handlePause}
-                disabled={!timerActive}
-              >
-                <Pause className="w-5 h-5" />
-                Pause
-              </button>
-            )}
-            <button
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition flex items-center gap-2"
-              onClick={handleReset}
-            >
-              <RotateCcw className="w-5 h-5" />
-              Reset
-            </button>
+        </div>
+
+        {/* Round Info */}
+        <div className="bg-gradient-to-br from-pink-800/50 to-red-800/50 rounded-2xl p-6 border border-pink-400/20">
+          <div className="text-center">
+            <div className="text-pink-300 text-sm font-semibold mb-2 uppercase tracking-wide">Round Progress</div>
+            <div className="text-2xl font-bold text-white mb-1">Round {round}</div>
+            <div className="text-pink-300 text-sm">of {maxRounds}</div>
+            <div className="mt-3 text-xs text-pink-300">Cards left: {cardsRemaining}</div>
           </div>
         </div>
       </div>
-      {/* Turn Controls */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-center mt-4">
+
+      {/* Action Buttons */}
+      <div className="mt-8 flex flex-wrap gap-4 justify-center">
         <button
-          className="px-5 py-2 bg-green-500 text-white font-bold rounded-xl shadow hover:bg-green-600 transition flex items-center gap-2 disabled:opacity-50"
+          className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold rounded-xl shadow-lg hover:from-emerald-600 hover:to-green-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           onClick={handleCorrect}
-          disabled={!timerActive}
+          disabled={!timerActive || cardsRemaining === 0}
         >
           <Check className="w-5 h-5" />
           Correct
         </button>
         <button
-          className="px-5 py-2 bg-yellow-400 text-white font-bold rounded-xl shadow hover:bg-yellow-500 transition flex items-center gap-2 disabled:opacity-50"
+          className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           onClick={handlePass}
-          disabled={!timerActive}
+          disabled={!timerActive || cardsRemaining === 0}
         >
           <SkipForward className="w-5 h-5" />
           Pass
         </button>
         <button
-          className="px-5 py-2 bg-blue-500 text-white font-bold rounded-xl shadow hover:bg-blue-600 transition flex items-center gap-2 disabled:opacity-50"
+          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold rounded-xl shadow-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           onClick={handleNext}
-          disabled={!turnEnded}
+          disabled={players.length < 2}
         >
           <ArrowRight className="w-5 h-5" />
           Next Player
         </button>
       </div>
+
+      {/* Status Messages */}
       {players.length < 2 && (
-        <div className="text-red-600 font-semibold text-center mt-2">
-          At least 2 players are required to start a round.
+        <div className="mt-6 text-center">
+          <div className="bg-red-900/30 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-300 font-semibold">
+              ⚠️ At least 2 players are required to start the game
+            </div>
+          </div>
         </div>
       )}
-      {turnEnded && (
-        <div className="text-indigo-700 font-semibold text-center mt-2">
-          Turn ended. Click "Next Player" to continue.
+      
+      {cardsRemaining === 0 && (
+        <div className="mt-6 text-center">
+          <div className="bg-purple-900/30 border border-purple-500/30 rounded-xl p-4">
+            <div className="text-purple-300 font-semibold">
+              🎉 All cards completed! Game ending...
+            </div>
+          </div>
         </div>
       )}
     </div>

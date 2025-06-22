@@ -5,8 +5,7 @@ import ContextModal from "./components/ContextModal";
 import WelcomeScreen from "./screens/WelcomeScreen";
 import { generateCharadesAI } from "./utils/textProcessing/generateCharadesAI";
 import type { CharadeAIItem } from "./utils/textProcessing/generateCharadesAI";
-import { SquareStack, SquareDashed, ArrowRight } from "lucide-react";
-import GameSummary from "./screens/GameSummary";
+import { ArrowRight } from "lucide-react";
 import { useGameStore } from "./context/gameStore";
 import './App.css' // Import your CSS file here
 
@@ -27,6 +26,9 @@ Trending in Lagos, Nigeria:
 function App() {
   // All hooks must be called unconditionally at the top level!
   const players = useGameStore((s) => s.players);
+  const round = useGameStore((s) => s.round);
+  const maxRounds = useGameStore((s) => s.maxRounds);
+  const currentPlayerIdx = useGameStore((s) => s.currentPlayerIdx);
 
   const [showWelcome, setShowWelcome] = useState(true);
   const [showContextModal, setShowContextModal] = useState(false);
@@ -40,6 +42,7 @@ function App() {
   const [currentCardIdx, setCurrentCardIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showGameOver, setShowGameOver] = useState(false);
 
   // Save context/settings from modal
   const handleSaveContext = (ctx: string, prompt: string, n: number, diff: "easy" | "medium" | "hard") => {
@@ -73,6 +76,14 @@ function App() {
   const handleNextCard = () => {
     setCurrentCardIdx((idx) => (idx + 1 < charades.length ? idx + 1 : idx));
   };
+
+  // Handle game end when all cards are finished
+  const handleGameEnd = () => {
+    setShowGameOver(true);
+  };
+
+  // Calculate remaining cards
+  const cardsRemaining = charades.length - currentCardIdx - 1;
 
   if (showWelcome) {
     return <WelcomeScreen onStart={() => setShowWelcome(false)} />;
@@ -127,9 +138,9 @@ function App() {
     );
   }
 
-  // Game over: show summary
-  if (gameStarted && currentCardIdx >= charades.length) {
-    const scores = players.map((p) => ({ name: p.name, score: p.score }));
+  // Game over: show premium winner screen
+  if (gameStarted && (showGameOver || currentCardIdx >= charades.length)) {
+    const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
     const handleRestart = () => {
       setGameStarted(false);
       setCharades([]);
@@ -139,9 +150,114 @@ function App() {
       setCustomPrompt("");
       setNumCards(20);
       setDifficulty("medium");
+      setShowGameOver(false);
       useGameStore.getState().resetGame();
     };
-    return <GameSummary scores={scores} onRestart={handleRestart} />;
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-900 flex flex-col items-center justify-center py-10 px-4">
+        <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-12 border border-white/20 max-w-4xl w-full">
+          {/* Trophy Header */}
+          <div className="text-center mb-12">
+            <div className="text-8xl mb-4">🏆</div>
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 bg-clip-text text-transparent mb-4">
+              Game Complete!
+            </h1>
+            <p className="text-xl text-purple-200">Final Results & Winners</p>
+          </div>
+
+          {/* Winners Podium */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {sortedPlayers.slice(0, 3).map((player, index) => {
+              const positions = ["🥇", "🥈", "🥉"];
+              const colors = [
+                "from-yellow-400 to-yellow-600",
+                "from-gray-300 to-gray-500", 
+                "from-amber-600 to-amber-800"
+              ];
+              const bgColors = [
+                "from-yellow-500/20 to-yellow-600/20",
+                "from-gray-400/20 to-gray-500/20",
+                "from-amber-500/20 to-amber-600/20"
+              ];
+              
+              return (
+                <div 
+                  key={player.id}
+                  className={`bg-gradient-to-br ${bgColors[index]} backdrop-blur-sm rounded-2xl p-6 border border-white/20 text-center transform transition-all duration-500 ${
+                    index === 0 ? 'scale-110 -translate-y-4' : index === 1 ? 'scale-105 -translate-y-2' : ''
+                  }`}
+                >
+                  <div className="text-6xl mb-4">{positions[index]}</div>
+                  <div className={`text-2xl font-bold bg-gradient-to-r ${colors[index]} bg-clip-text text-transparent mb-2`}>
+                    {index === 0 ? 'Champion' : index === 1 ? '2nd Place' : '3rd Place'}
+                  </div>
+                  <div className="text-xl font-semibold text-white mb-2">{player.name}</div>
+                  <div className="text-3xl font-bold text-white">{player.score} points</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* All Players Ranking */}
+          {sortedPlayers.length > 3 && (
+            <div className="mb-12">
+              <h3 className="text-2xl font-bold text-white text-center mb-6">Full Rankings</h3>
+              <div className="space-y-3">
+                {sortedPlayers.slice(3).map((player, index) => (
+                  <div 
+                    key={player.id}
+                    className="bg-white/10 rounded-xl p-4 flex items-center justify-between backdrop-blur-sm border border-white/10"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-8 h-8 rounded-full bg-purple-500/30 flex items-center justify-center text-white font-bold">
+                        {index + 4}
+                      </div>
+                      <div className="text-lg font-semibold text-white">{player.name}</div>
+                    </div>
+                    <div className="text-xl font-bold text-purple-200">{player.score} pts</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Game Stats */}
+          <div className="bg-white/5 rounded-2xl p-6 mb-8 border border-white/10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-3xl font-bold text-white">{charades.length}</div>
+                <div className="text-purple-200">Total Cards</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-white">{round}</div>
+                <div className="text-purple-200">Rounds Played</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-white">{players.length}</div>
+                <div className="text-purple-200">Players</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleRestart}
+              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-xl shadow-lg hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 transform hover:scale-105"
+            >
+              🎮 Play Again
+            </button>
+            <button
+              onClick={() => setShowWelcome(true)}
+              className="px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold rounded-xl shadow-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 transform hover:scale-105"
+            >
+              🏠 Main Menu
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // In-game: show card area and round manager
@@ -151,96 +267,177 @@ function App() {
         <span role="img" aria-label="charades">🎭</span>
         Context-Aware Charades
       </h1>
-      <div className="w-full h-full max-w-4xl flex flex-col gap-8">
-        {/* Enhanced Card Game Area */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 border border-indigo-100 w-full max-w-5xl mx-auto">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-indigo-700 flex items-center justify-center gap-2">
-              <span role="img" aria-label="cards">🃏</span>
-              Game Cards
-            </h2>
-            <p className="text-gray-600 text-sm mt-1">Stack → Active Card</p>
+      <div className="w-full h-full max-w-7xl flex flex-col lg:flex-row gap-8">
+        {/* Live Scoreboard */}
+        <div className="lg:w-80 w-full">
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl shadow-xl p-6 border border-emerald-100 h-fit">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-emerald-700 flex items-center justify-center gap-2">
+                <span role="img" aria-label="trophy">🏆</span>
+                Live Scoreboard
+              </h3>
+              <p className="text-emerald-600 text-sm mt-1">Round {round} of {maxRounds}</p>
+            </div>
+            
+            <div className="space-y-3">
+              {players.map((player, index) => (
+                <div 
+                  key={player.id}
+                  className={`flex items-center justify-between p-4 rounded-xl transition-all duration-300 ${
+                    index === currentPlayerIdx 
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg scale-105' 
+                      : 'bg-white text-emerald-700 shadow-md hover:shadow-lg'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      index === currentPlayerIdx ? 'bg-white text-emerald-600' : 'bg-emerald-100 text-emerald-600'
+                    }`}>
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="font-semibold">{player.name}</div>
+                      {index === currentPlayerIdx && (
+                        <div className="text-xs opacity-90">Current Player</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`text-2xl font-bold ${
+                    index === currentPlayerIdx ? 'text-white' : 'text-emerald-600'
+                  }`}>
+                    {player.score}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {players.length === 0 && (
+              <div className="text-center text-emerald-600 py-8">
+                <div className="text-4xl mb-2">👥</div>
+                <div className="text-sm">No players added yet</div>
+              </div>
+            )}
           </div>
-          
-          <div className="flex flex-col lg:flex-row items-center justify-center gap-12">
-            {/* Card Stack */}
-            <div className="flex flex-col items-center">
-              <div className="mb-4 text-indigo-700 font-semibold flex items-center gap-2">
-                <SquareStack className="w-6 h-6" />
-                <span>Card Stack</span>
-                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-bold">
-                  {charades.length - currentCardIdx - 1}
+        </div>
+
+        {/* Premium Card Game Area */}
+        <div className="flex-1">
+          <div className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-3xl shadow-2xl p-8 border border-purple-500/20">
+            {/* Game Table Header */}
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white flex items-center justify-center gap-3">
+                <span className="text-4xl">🎭</span>
+                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  Charades Arena
                 </span>
-              </div>
-              <div className="relative h-[160px] w-[140px] flex items-end justify-center">
-                {charades.slice(currentCardIdx + 1).slice(0, 5).map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute left-0 right-0 mx-auto bg-gradient-to-br from-indigo-300 to-violet-300 border-2 border-indigo-400 rounded-2xl shadow-lg h-[120px] w-[120px] transition-all duration-300 hover:scale-105"
-                    style={{
-                      bottom: `${i * 12}px`,
-                      zIndex: 5 - i,
-                      opacity: 0.8 - i * 0.15,
-                      transform: `scale(${1 - i * 0.08}) rotate(${(i - 2) * 2}deg)`,
-                    }}
-                  >
-                    <div className="h-full w-full flex items-center justify-center">
-                      <div className="text-white text-xs font-bold opacity-70">CARD</div>
-                    </div>
-                  </div>
-                ))}
-                {charades.length - currentCardIdx - 1 === 0 && (
-                  <div className="absolute left-0 right-0 mx-auto bg-gray-100 border-2 border-gray-200 rounded-2xl shadow h-[120px] w-[120px] flex items-center justify-center text-gray-400 text-sm">
-                    <div className="text-center">
-                      <div className="text-2xl mb-1">📭</div>
-                      <div className="text-xs">Empty</div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              </h2>
+              <p className="text-purple-300 text-sm mt-2">Cards remaining: {charades.length - currentCardIdx - 1}</p>
             </div>
-
-            {/* Animated Arrow */}
-            <div className="flex items-center">
-              <div className="bg-gradient-to-r from-violet-500 to-indigo-500 text-white p-3 rounded-full shadow-lg animate-pulse">
-                <ArrowRight className="w-6 h-6" />
-              </div>
-            </div>
-
-            {/* Active Card */}
-            <div className="flex flex-col items-center">
-              <div className="mb-4 text-violet-700 font-semibold flex items-center gap-2">
-                <SquareDashed className="w-6 h-6" />
-                <span>Active Card</span>
-              </div>
-              <div 
-                key={currentCardIdx} 
-                className="bg-gradient-to-br from-white to-violet-50 border-3 border-violet-400 rounded-2xl shadow-2xl p-8 min-h-[160px] w-[280px] flex items-center justify-center transition-all duration-500 transform hover:scale-105 animate-in slide-in-from-left-5"
-              >
-                <div className="text-center">
-                  {charades.length === 0 ? (
-                    <div className="text-gray-500">
-                      <div className="text-4xl mb-2">🎭</div>
-                      <div className="text-lg">No cards available</div>
+            
+            <div className="flex flex-col lg:flex-row items-center justify-center gap-16">
+              {/* Card Stack with Joker Backs */}
+              <div className="flex flex-col items-center">
+                <div className="mb-6 text-purple-300 font-semibold text-sm tracking-wide uppercase">
+                  Card Deck
+                </div>
+                <div className="relative h-[200px] w-[160px] flex items-end justify-center">
+                  {charades.slice(currentCardIdx + 1).slice(0, 6).map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute left-0 right-0 mx-auto transition-all duration-500 hover:scale-105 cursor-pointer"
+                      style={{
+                        bottom: `${i * 8}px`,
+                        zIndex: 6 - i,
+                        transform: `scale(${1 - i * 0.05}) rotate(${(i - 3) * 1.5}deg)`,
+                      }}
+                    >
+                      {/* Playing Card Back Design */}
+                      <div className="h-[140px] w-[100px] bg-gradient-to-br from-red-600 via-red-700 to-red-800 rounded-xl border-2 border-yellow-400 shadow-xl relative overflow-hidden">
+                        {/* Card Back Pattern */}
+                        <div className="absolute inset-2 bg-gradient-to-br from-red-500 to-red-700 rounded-lg border border-yellow-300">
+                          <div className="h-full w-full flex items-center justify-center relative">
+                            {/* Joker Pattern */}
+                            <div className="text-yellow-300 text-3xl font-bold">🃏</div>
+                            <div className="absolute top-1 left-1 text-yellow-300 text-xs font-bold">🂿</div>
+                            <div className="absolute bottom-1 right-1 text-yellow-300 text-xs font-bold transform rotate-180">🂿</div>
+                            {/* Decorative Border */}
+                            <div className="absolute inset-1 border border-yellow-400/30 rounded"></div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ) : currentCardIdx < charades.length ? (
-                    <div className="text-2xl lg:text-3xl font-bold text-violet-700 leading-tight">
-                      {charades[currentCardIdx].text}
-                    </div>
-                  ) : (
-                    <div className="text-violet-600">
-                      <div className="text-4xl mb-2">🏁</div>
-                      <div className="text-lg font-semibold">All cards completed!</div>
-                      <div className="text-sm mt-1">Ready for results</div>
+                  ))}
+                  {charades.length - currentCardIdx - 1 === 0 && (
+                    <div className="h-[140px] w-[100px] bg-gradient-to-br from-gray-600 to-gray-800 rounded-xl border-2 border-gray-400 flex items-center justify-center text-gray-300">
+                      <div className="text-center">
+                        <div className="text-3xl mb-1">📭</div>
+                        <div className="text-xs">Empty</div>
+                      </div>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Elegant Separator */}
+              <div className="flex items-center">
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-full shadow-2xl animate-pulse">
+                  <ArrowRight className="w-8 h-8 text-white" />
+                </div>
+              </div>
+
+              {/* Active Premium Card */}
+              <div className="flex flex-col items-center">
+                <div className="mb-6 text-purple-300 font-semibold text-sm tracking-wide uppercase">
+                  Active Challenge
+                </div>
+                <div 
+                  key={currentCardIdx} 
+                  className="relative h-[200px] w-[320px] perspective-1000"
+                >
+                  {/* Premium Card Design */}
+                  <div className="h-full w-full bg-gradient-to-br from-white via-blue-50 to-purple-50 rounded-2xl border-4 border-gradient-to-r from-purple-400 to-pink-400 shadow-2xl relative overflow-hidden transition-all duration-700 transform hover:scale-105 hover:rotate-1">
+                    {/* Card Background Pattern */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-100/20 to-pink-100/20"></div>
+                    <div className="absolute top-4 left-4 text-purple-400 text-sm font-bold">♠</div>
+                    <div className="absolute top-4 right-4 text-red-400 text-sm font-bold">♥</div>
+                    <div className="absolute bottom-4 left-4 text-red-400 text-sm font-bold transform rotate-180">♦</div>
+                    <div className="absolute bottom-4 right-4 text-purple-400 text-sm font-bold transform rotate-180">♣</div>
+                    
+                    {/* Card Content */}
+                    <div className="h-full w-full flex items-center justify-center p-6">
+                      <div className="text-center">
+                        {charades.length === 0 ? (
+                          <div className="text-gray-500">
+                            <div className="text-5xl mb-3">🎭</div>
+                            <div className="text-xl font-semibold">No cards available</div>
+                          </div>
+                        ) : currentCardIdx < charades.length ? (
+                          <div className="text-2xl lg:text-3xl font-bold text-gray-800 leading-tight tracking-wide">
+                            {charades[currentCardIdx].text}
+                          </div>
+                        ) : (
+                          <div className="text-purple-600">
+                            <div className="text-5xl mb-3">🎉</div>
+                            <div className="text-xl font-bold">Game Complete!</div>
+                            <div className="text-sm mt-2 text-purple-500">Calculating final scores...</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Premium Card Border Effect */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400/20 via-transparent to-pink-400/20 pointer-events-none"></div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        
         <RoundManager
           onNextCard={handleNextCard}
+          cardsRemaining={cardsRemaining}
+          onGameEnd={handleGameEnd}
         />
       </div>
     </div>
