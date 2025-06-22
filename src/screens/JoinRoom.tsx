@@ -181,9 +181,8 @@ const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
           <button
             onClick={connectToServer}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-            disabled={connectionStatus === 'connecting'}
           >
-            {connectionStatus === 'connecting' ? 'Reconnecting...' : 'Retry Connection'}
+            Retry Connection
           </button>
         </div>
       )}
