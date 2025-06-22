@@ -97,46 +97,67 @@ function App() {
   // Pre-game setup: player manager, context modal, start game button
   if (!gameStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-violet-200 flex flex-col items-center justify-start py-10 px-2">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-indigo-700 mb-8 flex items-center gap-2 drop-shadow">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-start p-6 md:p-16 lg:p-20">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-8 flex items-center gap-2 drop-shadow-lg">
           <span role="img" aria-label="charades">🎭</span>
-          Context-Aware Charades
+          <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Context-Aware Charades
+          </span>
         </h1>
-        <div className="w-full h-full max-w-4xl flex flex-col gap-8">
+        <div className="w-full max-w-6xl flex flex-col gap-8">
           <PlayerManager />
-          <div className="flex flex-col items-center gap-4">
-            <button
-              className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-bold rounded-xl shadow hover:from-indigo-600 hover:to-violet-600 transition flex items-center gap-2"
-              onClick={() => setShowContextModal(true)}
-            >
-              Customize Charade Cards
-            </button>
-            <ContextModal
-              open={showContextModal}
-              onClose={() => setShowContextModal(false)}
-              onSave={handleSaveContext}
-              initialContext={context}
-              initialPrompt={customPrompt}
-              initialNumCards={numCards}
-              initialDifficulty={difficulty}
-            />
-            <button
-              className="px-6 py-3 bg-green-500 text-white font-bold rounded-xl shadow hover:bg-green-600 transition flex items-center gap-2 mt-2"
-              onClick={handleStartGame}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="animate-spin inline-block mr-2">⏳</span>
-                  Generating Cards...
-                </>
-              ) : (
-                <>
-                  Start Game
-                </>
+          <div className="bg-gradient-to-br from-slate-800/50 via-purple-900/50 to-slate-800/50 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-purple-500/20">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-3">
+                <span className="text-3xl">🎯</span>
+                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  Game Setup
+                </span>
+              </h2>
+            </div>
+            <div className="flex flex-col items-center gap-6">
+              <button
+                className="w-full max-w-md px-8 py-4 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-bold rounded-xl shadow-lg hover:from-indigo-600 hover:to-violet-600 transition-all duration-300 flex items-center justify-center gap-3 transform hover:scale-105"
+                onClick={() => setShowContextModal(true)}
+              >
+                <span className="text-xl">⚙️</span>
+                Customize Charade Cards
+              </button>
+              <ContextModal
+                open={showContextModal}
+                onClose={() => setShowContextModal(false)}
+                onSave={handleSaveContext}
+                initialContext={context}
+                initialPrompt={customPrompt}
+                initialNumCards={numCards}
+                initialDifficulty={difficulty}
+              />
+              <button
+                className="w-full max-w-md px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 flex items-center justify-center gap-3 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                onClick={handleStartGame}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin inline-block text-xl">⏳</span>
+                    Generating Cards...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl">🎮</span>
+                    Start Game
+                  </>
+                )}
+              </button>
+              {error && (
+                <div className="bg-red-900/30 border border-red-500/30 rounded-xl p-4 mt-4 w-full max-w-md">
+                  <div className="text-red-300 font-semibold flex items-center justify-center gap-2">
+                    <span role="img" aria-label="error">⚠️</span>
+                    {error}
+                  </div>
+                </div>
               )}
-            </button>
-            {error && <div className="text-red-600 mt-2 font-semibold flex items-center gap-1"><span role="img" aria-label="error">⚠️</span>{error}</div>}
+            </div>
           </div>
         </div>
       </div>
@@ -267,7 +288,7 @@ function App() {
 
   // In-game: show card area and round manager
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-start py-10 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-start p-6 md:p-16 lg:p-20">
       <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-8 flex items-center gap-2 drop-shadow-lg">
         <span role="img" aria-label="charades">🎭</span>
         <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
@@ -275,7 +296,7 @@ function App() {
         </span>
       </h1>
       
-      <div className="w-full max-w-7xl flex flex-col gap-8">
+      <div className="w-full max-w-6xl flex flex-col gap-8">
         {/* Premium Card Game Area */}
         <div className="bg-gradient-to-br from-slate-800/50 via-purple-900/50 to-slate-800/50 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-purple-500/20">
           {/* Game Table Header */}
@@ -410,16 +431,16 @@ function App() {
         />
 
         {/* Live Scoreboard at Bottom */}
-        <div className="bg-gradient-to-br from-emerald-800/30 to-teal-800/30 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-emerald-500/20">
-          <div className="text-center mb-6">
-            <h3 className="text-xl font-bold text-emerald-300 flex items-center justify-center gap-2">
+        <div className="bg-gradient-to-br from-emerald-800/30 to-teal-800/30 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-emerald-500/20">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-emerald-300 flex items-center gap-2">
               <span role="img" aria-label="trophy">🏆</span>
               Live Scoreboard
             </h3>
-            <p className="text-emerald-400 text-sm mt-1">Round {round} of {maxRounds}</p>
+            <p className="text-emerald-400 text-sm">Round {round} of {maxRounds}</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {players.map((player, index) => (
               <div 
                 key={player.id}

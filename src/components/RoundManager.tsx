@@ -79,7 +79,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
   const canStart = players.length >= 2 && !timerActive && !turnEnded;
 
   return (
-    <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-gray-900 rounded-3xl shadow-2xl p-8 border border-indigo-500/20 w-full max-w-4xl mx-auto">
+    <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-gray-900 rounded-3xl shadow-2xl p-8 border border-indigo-500/20 w-full">
       {/* Header */}
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-3">
@@ -92,7 +92,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Current Player Info */}
-        <div className="bg-gradient-to-br from-indigo-800/50 to-purple-800/50 rounded-2xl p-6 border border-indigo-400/20">
+        <div className="bg-gradient-to-br from-indigo-800/50 to-purple-800/50 rounded-2xl p-8 border border-indigo-400/20">
           <div className="text-center">
             <div className="text-indigo-300 text-sm font-semibold mb-2 uppercase tracking-wide">Current Player</div>
             {currentPlayer ? (
@@ -107,14 +107,14 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
         </div>
 
         {/* Timer */}
-        <div className="bg-gradient-to-br from-purple-800/50 to-pink-800/50 rounded-2xl p-6 border border-purple-400/20">
+        <div className="bg-gradient-to-br from-purple-800/50 to-pink-800/50 rounded-2xl p-8 border border-purple-400/20">
           <div className="text-center">
             <div className="text-purple-300 text-sm font-semibold mb-2 uppercase tracking-wide">Timer</div>
             <div className="text-5xl font-mono font-bold text-white mb-4">{timer}s</div>
             <div className="flex gap-2 justify-center">
               {!timerActive && !turnEnded ? (
                 <button
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow hover:from-emerald-600 hover:to-teal-600 transition flex items-center gap-2 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow hover:from-emerald-600 hover:to-teal-600 transition flex items-center justify-center gap-2 disabled:opacity-50"
                   onClick={handleStart}
                   disabled={!canStart}
                 >
@@ -123,7 +123,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
                 </button>
               ) : (
                 <button
-                  className="px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold rounded-xl shadow hover:from-gray-600 hover:to-gray-700 transition flex items-center gap-2 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold rounded-xl shadow hover:from-gray-600 hover:to-gray-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
                   onClick={handlePause}
                   disabled={!timerActive}
                 >
@@ -132,7 +132,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
                 </button>
               )}
               <button
-                className="px-4 py-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-xl shadow hover:from-slate-600 hover:to-slate-700 transition flex items-center gap-2"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-xl shadow hover:from-slate-600 hover:to-slate-700 transition flex items-center justify-center gap-2"
                 onClick={handleReset}
               >
                 <RotateCcw className="w-4 h-4" />
@@ -143,7 +143,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
         </div>
 
         {/* Round Info */}
-        <div className="bg-gradient-to-br from-pink-800/50 to-red-800/50 rounded-2xl p-6 border border-pink-400/20">
+        <div className="bg-gradient-to-br from-pink-800/50 to-red-800/50 rounded-2xl p-8 border border-pink-400/20">
           <div className="text-center">
             <div className="text-pink-300 text-sm font-semibold mb-2 uppercase tracking-wide">Round Progress</div>
             <div className="text-2xl font-bold text-white mb-1">Round {round}</div>
@@ -154,9 +154,9 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-8 flex flex-wrap gap-4 justify-center">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         <button
-          className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold rounded-xl shadow-lg hover:from-emerald-600 hover:to-green-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+          className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold rounded-xl shadow-lg hover:from-emerald-600 hover:to-green-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           onClick={handleCorrect}
           disabled={!timerActive || cardsRemaining === 0}
         >
@@ -164,7 +164,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
           Correct
         </button>
         <button
-          className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+          className="w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           onClick={handlePass}
           disabled={!timerActive || cardsRemaining === 0}
         >
@@ -172,7 +172,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard, cardsRemaining 
           Pass
         </button>
         <button
-          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold rounded-xl shadow-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+          className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold rounded-xl shadow-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           onClick={handleNext}
           disabled={players.length < 2}
         >

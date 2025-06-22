@@ -136,84 +136,103 @@ const ContextInput: React.FC<ContextInputProps> = ({ onContextChange }) => {
   });
 
   return (
-    <div className="w-full h-full bg-white rounded-2xl shadow-lg p-6 border border-indigo-100 flex flex-col gap-6 ">
-      <div className="flex flex-col md:flex-row gap-6 w-full h-full">
+    <div className="w-full bg-gradient-to-br from-purple-900/20 to-indigo-900/20 rounded-2xl p-6 border border-purple-400/20 backdrop-blur-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
         {/* Upload column */}
-        <div className="flex-1 flex flex-col gap-2 h-full">
-          <label className="font-semibold text-indigo-700 mb-1 text-lg flex items-center gap-2">
-            <span role="img" aria-label="upload">📤</span>
-            Upload Files
+        <div className="flex flex-col gap-4">
+          <label className="font-semibold text-purple-300 text-lg flex items-center gap-2">
+            <span className="text-2xl">📤</span>
+            Upload Context Files
           </label>
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 shadow-sm ${
-              isDragActive ? "border-violet-500 bg-violet-50" : "border-indigo-200 bg-white hover:bg-indigo-50"
+            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-300 ${
+              isDragActive 
+                ? "border-purple-400 bg-purple-500/20 scale-105" 
+                : "border-purple-400/40 bg-white/5 hover:bg-white/10 hover:border-purple-400"
             }`}
           >
             <input {...getInputProps()} />
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-3xl">📂</span>
-              <span className="font-medium text-indigo-700">
+            <div className="flex flex-col items-center gap-3">
+              <span className="text-4xl">📂</span>
+              <span className="font-medium text-purple-200">
                 {isDragActive
                   ? "Drop the files here ..."
                   : "Drag & drop files here, or click to select"}
               </span>
-              <div className="text-xs text-gray-500 mt-2">
-                Supported: <span className="font-mono">.txt,.md,.docx,.pdf</span> <br/> &middot; Max 10MB/file &middot; Up to 5 files
+              <div className="text-xs text-purple-400 mt-2 bg-purple-900/30 px-3 py-2 rounded-lg">
+                <div className="font-mono">.txt • .md • .docx • .pdf</div>
+                <div className="mt-1">Max 10MB/file • Up to 5 files</div>
               </div>
             </div>
           </div>
+          
           {files.length > 0 && (
-            <ul className="mt-3 flex flex-col gap-2">
-              {files.map((file, idx) => (
-                <li
-                  key={file.name + file.size}
-                  className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded px-3 py-1 transition-all duration-200"
-                >
-                  <span className="truncate text-sm text-indigo-900 flex items-center gap-1">
-                    <span role="img" aria-label="file">📄</span>
-                    {file.name}
-                  </span>
-                  <button
-                    className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFile(idx);
-                    }}
-                    aria-label={`Remove ${file.name}`}
-                    type="button"
+            <div className="space-y-2">
+              <div className="text-purple-300 text-sm font-medium">
+                📁 {files.length} file{files.length !== 1 ? 's' : ''} uploaded
+              </div>
+              <ul className="space-y-2">
+                {files.map((file, idx) => (
+                  <li
+                    key={file.name + file.size}
+                    className="flex items-center justify-between bg-purple-800/30 border border-purple-400/20 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-purple-700/40"
                   >
-                    <span role="img" aria-label="remove">❌</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {fileError && (
-            <div className="text-red-600 text-sm mt-2 font-semibold flex items-center gap-1">
-              <span role="img" aria-label="error">⚠️</span>
-              {fileError}
+                    <span className="truncate text-sm text-purple-200 flex items-center gap-2">
+                      <span className="text-lg">📄</span>
+                      {file.name}
+                    </span>
+                    <button
+                      className="p-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all duration-200 transform hover:scale-110"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFile(idx);
+                      }}
+                      aria-label={`Remove ${file.name}`}
+                      type="button"
+                    >
+                      ❌
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
+          
+          {fileError && (
+            <div className="bg-red-900/30 border border-red-500/30 rounded-lg p-3">
+              <div className="text-red-300 text-sm font-semibold flex items-center gap-2">
+                <span>⚠️</span>
+                {fileError}
+              </div>
+            </div>
+          )}
+          
           {loading && (
-            <div className="flex items-center gap-2 text-indigo-600 text-sm mt-2 animate-pulse">
-              <span role="img" aria-label="loading">⏳</span>
-              Extracting text from files...
+            <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-purple-300 text-sm animate-pulse">
+                <span className="text-lg">⏳</span>
+                Extracting text from files...
+              </div>
             </div>
           )}
         </div>
+        
         {/* Paste column */}
-        <div className="flex-1 flex flex-col gap-2 h-full">
-          <label className="font-semibold text-indigo-700 mb-1 text-lg flex items-center gap-2">
-            <span role="img" aria-label="paste">📝</span>
-            Paste Context
+        <div className="flex flex-col gap-4">
+          <label className="font-semibold text-purple-300 text-lg flex items-center gap-2">
+            <span className="text-2xl">📝</span>
+            Paste Context Directly
           </label>
           <textarea
-            className="border-2 border-indigo-200 rounded-xl p-3 min-h-[220px] resize-y focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition text-base"
-            placeholder="Paste conversation, social feed, or any context here..."
+            className="bg-white/10 border-2 border-purple-400/30 rounded-xl p-4 min-h-[280px] text-white placeholder-purple-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20 transition backdrop-blur-sm resize-y"
+            placeholder="Paste conversation, social feed, trending topics, or any context here..."
             value={text}
             onChange={handleTextChange}
           />
+          <div className="text-purple-400 text-xs bg-purple-900/20 px-3 py-2 rounded-lg">
+            💡 This context will be used to generate relevant charade topics
+          </div>
         </div>
       </div>
     </div>
