@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ContextInput from "./ContextInput";
-import { X, FileText, Settings, Save } from "lucide-react";
+import { X, Settings, Save } from "lucide-react";
 
 interface ContextModalProps {
   open: boolean;
