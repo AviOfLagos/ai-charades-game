@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PlayerManager from "./components/PlayerManager";
 import RoundManager from "./components/RoundManager";
 import ContextModal from "./components/ContextModal";
 import WelcomeScreen from "./screens/WelcomeScreen";
+import GameSuite from "./screens/GameSuite";
+import GameLobby from "./screens/GameLobby";
 import { generateCharadesAI } from "./utils/textProcessing/generateCharadesAI";
 import type { CharadeAIItem } from "./utils/textProcessing/generateCharadesAI";
 import { ArrowRight } from "lucide-react";
 import { useGameStore } from "./context/gameStore";
+import { socketService } from "./services/socketService";
+import type { GameRoom, Player } from "./types/multiplayer";
 import './App.css' // Import your CSS file here
 
 const DEFAULT_CONTEXT = `
@@ -30,7 +34,11 @@ function App() {
   const maxRounds = useGameStore((s) => s.maxRounds);
   const currentPlayerIdx = useGameStore((s) => s.currentPlayerIdx);
 
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [currentScreen, setCurrentScreen] = useState<"game-suite" | "welcome" | "lobby" | "solo-setup" | "game">("game-suite");
+  const [gameMode, setGameMode] = useState<"solo" | "multiplayer" | null>(null);
+  const [isHost, setIsHost] = useState(false);
+  const [currentRoom, setCurrentRoom] = useState<GameRoom | null>(null);
+  const [roomCode, setRoomCode] = useState<string>("");
   const [showContextModal, setShowContextModal] = useState(false);
   const [context, setContext] = useState("");
   const [customPrompt, setCustomPrompt] = useState("");
@@ -90,12 +98,137 @@ function App() {
   // Calculate remaining cards
   const cardsRemaining = charades.length - currentCardIdx - 1;
 
-  if (showWelcome) {
-    return <WelcomeScreen onStart={() => setShowWelcome(false)} />;
+  // Handle game selection from suite
+  const handleGameSelect = (gameId: string) => {
+    if (gameId === "context-charades") {
+      setCurrentScreen("welcome");
+    }
+  };
+
+  // Handle solo game start
+  const handleStartSolo = () => {
+    setGameMode("solo");
+    setCurrentScreen("solo-setup");
+  };
+
+  // Handle create room
+  const handleCreateRoom = async () => {
+    try {
+      setGameMode("multiplayer");
+      setIsHost(true);
+      
+      // Connect to socket and create room
+      await socketService.connect();
+      const hostName = `Host_${Math.random().toString(36).substr(2, 5)}`;
+      const roomData = await socketService.createRoom(hostName);
+      
+      setCurrentRoom(roomData.room);
+      setRoomCode(roomData.roomCode);
+      setCurrentScreen("lobby");
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      setError('Failed to create room. Please try again.');
+    }
+  };
+
+  // Handle join room (placeholder for URL-based joining)
+  const handleJoinRoom = () => {
+    // This will be implemented with React Router for URL-based joining
+    console.log('Join room functionality will be implemented with React Router');
+  };
+
+  // Handle game start from lobby (multiplayer)
+  const handleMultiplayerGameStart = (room: GameRoom) => {
+    if (isHost) {
+      // Host needs to set up the game first
+      setCurrentScreen("solo-setup");
+    } else {
+      // Players go directly to game
+      setCurrentRoom(room);
+      setGameStarted(true);
+      setCurrentScreen("game");
+    }
+  };
+
+  // Handle solo game setup completion
+  const handleSoloSetupComplete = async () => {
+    if (gameMode === "solo") {
+      setCurrentScreen("game");
+    } else if (gameMode === "multiplayer" && isHost) {
+      // Host starts the multiplayer game
+      try {
+        const items = await generateCharadesAI(effectiveContext, customPrompt, numCards, difficulty);
+        setCharades(items);
+        setCurrentCardIdx(0);
+        setGameStarted(true);
+        
+        // Notify all players via Socket.io
+        socketService.startGame(roomCode, items);
+        setCurrentScreen("game");
+      } catch {
+        setError("Failed to generate charade items.");
+      }
+    }
+  };
+
+  // Handle leaving room
+  const handleLeaveRoom = () => {
+    socketService.disconnect();
+    setCurrentRoom(null);
+    setRoomCode("");
+    setIsHost(false);
+    setGameMode(null);
+    setCurrentScreen("welcome");
+  };
+
+  // Handle restarting and going back to main menu
+  const handleBackToSuite = () => {
+    socketService.disconnect();
+    setCurrentScreen("game-suite");
+    setGameMode(null);
+    setIsHost(false);
+    setCurrentRoom(null);
+    setRoomCode("");
+    setGameStarted(false);
+    setCharades([]);
+    setCurrentCardIdx(0);
+    setContextSet(false);
+    setContext("");
+    setCustomPrompt("");
+    setNumCards(20);
+    setDifficulty("medium");
+    setShowGameOver(false);
+    useGameStore.getState().resetGame();
+  };
+
+  if (currentScreen === "game-suite") {
+    return <GameSuite onSelectGame={handleGameSelect} />;
+  }
+
+  if (currentScreen === "welcome") {
+    return (
+      <WelcomeScreen 
+        onStartSolo={handleStartSolo}
+        onCreateRoom={handleCreateRoom}
+        onJoinRoom={handleJoinRoom}
+      />
+    );
+  }
+
+  if (currentScreen === "lobby") {
+    return (
+      <GameLobby
+        roomCode={roomCode}
+        currentRoom={currentRoom}
+        isHost={isHost}
+        onGameStart={handleMultiplayerGameStart}
+        onLeaveRoom={handleLeaveRoom}
+      />
+    );
   }
 
   // Pre-game setup: player manager, context modal, start game button
-  if (!gameStarted) {
+  if (currentScreen === "solo-setup" || (!gameStarted && gameMode === "solo")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-start p-6 md:p-16 lg:p-20">
         <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-8 flex items-center gap-2 drop-shadow-lg">
@@ -105,13 +238,13 @@ function App() {
           </span>
         </h1>
         <div className="w-full max-w-6xl flex flex-col gap-8">
-          <PlayerManager />
+          {gameMode === "solo" && <PlayerManager />}
           <div className="bg-gradient-to-br from-slate-800/50 via-purple-900/50 to-slate-800/50 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-purple-500/20">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-3">
                 <span className="text-3xl">🎯</span>
                 <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  Game Setup
+                  {gameMode === "multiplayer" && isHost ? "Host Game Setup" : "Game Setup"}
                 </span>
               </h2>
             </div>
@@ -134,7 +267,7 @@ function App() {
               />
               <button
                 className="w-full max-w-md px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 flex items-center justify-center gap-3 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                onClick={handleStartGame}
+                onClick={handleSoloSetupComplete}
                 disabled={loading}
               >
                 {loading ? (
@@ -145,7 +278,7 @@ function App() {
                 ) : (
                   <>
                     <span className="text-xl">🎮</span>
-                    Start Game
+                    {gameMode === "multiplayer" && isHost ? "Start Multiplayer Game" : "Start Game"}
                   </>
                 )}
               </button>
@@ -178,6 +311,13 @@ function App() {
       setDifficulty("medium");
       setShowGameOver(false);
       useGameStore.getState().resetGame();
+      
+      // For multiplayer, go back to lobby; for solo, go to setup
+      if (gameMode === "multiplayer") {
+        setCurrentScreen("lobby");
+      } else {
+        setCurrentScreen("solo-setup");
+      }
     };
     
     return (
@@ -275,7 +415,7 @@ function App() {
               🎮 Play Again
             </button>
             <button
-              onClick={() => setShowWelcome(true)}
+              onClick={handleBackToSuite}
               className="px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold rounded-xl shadow-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 transform hover:scale-105"
             >
               🏠 Main Menu
