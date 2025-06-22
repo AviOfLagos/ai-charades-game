@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import PlayerManager from "./components/PlayerManager";
 import RoundManager from "./components/RoundManager";
 import ContextModal from "./components/ContextModal";
@@ -10,7 +10,7 @@ import type { CharadeAIItem } from "./utils/textProcessing/generateCharadesAI";
 import { ArrowRight } from "lucide-react";
 import { useGameStore } from "./context/gameStore";
 import { socketService } from "./services/socketService";
-import type { GameRoom, Player } from "./types/multiplayer";
+import type { GameRoom } from "./types/multiplayer";
 import './App.css' // Import your CSS file here
 
 const DEFAULT_CONTEXT = `
@@ -66,20 +66,6 @@ function App() {
   // Use default context if none provided
   const effectiveContext = contextSet && context.trim() ? context : DEFAULT_CONTEXT;
 
-  // Start game: generate charade cards and show round manager
-  const handleStartGame = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const items = await generateCharadesAI(effectiveContext, customPrompt, numCards, difficulty);
-      setCharades(items);
-      setCurrentCardIdx(0);
-      setGameStarted(true);
-    } catch {
-      setError("Failed to generate charade items.");
-    }
-    setLoading(false);
-  };
 
   // Advance to next card with flip animation
   const handleNextCard = () => {
@@ -152,23 +138,27 @@ function App() {
 
   // Handle solo game setup completion
   const handleSoloSetupComplete = async () => {
-    if (gameMode === "solo") {
-      setCurrentScreen("game");
-    } else if (gameMode === "multiplayer" && isHost) {
-      // Host starts the multiplayer game
-      try {
-        const items = await generateCharadesAI(effectiveContext, customPrompt, numCards, difficulty);
-        setCharades(items);
-        setCurrentCardIdx(0);
-        setGameStarted(true);
-        
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const items = await generateCharadesAI(effectiveContext, customPrompt, numCards, difficulty);
+      setCharades(items);
+      setCurrentCardIdx(0);
+      setGameStarted(true);
+      
+      if (gameMode === "solo") {
+        setCurrentScreen("game");
+      } else if (gameMode === "multiplayer" && isHost) {
         // Notify all players via Socket.io
         socketService.startGame(roomCode, items);
         setCurrentScreen("game");
-      } catch {
-        setError("Failed to generate charade items.");
       }
+    } catch {
+      setError("Failed to generate charade items.");
     }
+    
+    setLoading(false);
   };
 
   // Handle leaving room

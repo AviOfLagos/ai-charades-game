@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { socketService } from '../services/socketService';
-import { Copy, Share2, Users, Crown, Clock, Settings, Play, ExternalLink } from 'lucide-react';
-import type { GameRoom, Player } from '../types/multiplayer';
+import { Copy, Share2, Users, Crown, Clock, Play, ExternalLink } from 'lucide-react';
+import type { GameRoom } from '../types/multiplayer';
 
 interface GameLobbyProps {
   roomCode: string;
@@ -81,7 +81,6 @@ const GameLobby: React.FC<GameLobbyProps> = ({
     onGameStart(room);
   };
 
-  const currentPlayer = room?.players.find(p => p.id === socketService.socketId);
   const minPlayersToStart = 2;
   const canStartGame = isHost && room && room.players.length >= minPlayersToStart;
 

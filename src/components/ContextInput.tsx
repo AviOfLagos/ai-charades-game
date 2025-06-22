@@ -25,9 +25,9 @@ const ContextInput: React.FC<ContextInputProps> = ({ onContextChange }) => {
 
   const extractPdfText = async (file: File): Promise<string> => {
     // Set workerSrc for pdfjs (hardcoded to installed version)
-    (pdfjsLib as any).GlobalWorkerOptions.workerSrc = "//unpkg.com/pdfjs-dist@5.2.133/build/pdf.worker.min.js";
+    (pdfjsLib as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = "//unpkg.com/pdfjs-dist@5.2.133/build/pdf.worker.min.js";
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await (pdfjsLib as any).getDocument({ data: arrayBuffer }).promise;
+    const pdf = await (pdfjsLib as { getDocument: (params: { data: ArrayBuffer }) => { promise: Promise<{ numPages: number; getPage: (pageNum: number) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str: string }> }> }> }> } }).getDocument({ data: arrayBuffer }).promise;
     let text = "";
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
@@ -38,7 +38,7 @@ const ContextInput: React.FC<ContextInputProps> = ({ onContextChange }) => {
   };
 
   // Extract and update context from the current file list
-  const updateContextFromFiles = async (fileList: File[]) => {
+  const updateContextFromFiles = useCallback(async (fileList: File[]) => {
     setFileError(null);
     setLoading(true);
     let allText = "";
@@ -76,7 +76,7 @@ const ContextInput: React.FC<ContextInputProps> = ({ onContextChange }) => {
     setText(allText.trim());
     onContextChange(allText.trim());
     setLoading(false);
-  };
+  }, [onContextChange]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {

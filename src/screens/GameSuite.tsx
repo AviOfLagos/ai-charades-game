@@ -1,5 +1,5 @@
 import React from "react";
-import { Play, Lock, Users, Clock, Brain, Target, Zap, Heart, Star } from "lucide-react";
+import { Play, Lock, Users, Clock, Target, Star } from "lucide-react";
 
 interface Game {
   id: string;

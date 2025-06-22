@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Users, User, Hash, Gamepad2 } from "lucide-react";
+import { Users, Hash, Gamepad2 } from "lucide-react";
 
 interface WelcomeScreenProps {
   onStartSolo: () => void;

@@ -38,7 +38,11 @@ export interface PlayerJoinedData {
 export interface GameAction {
   roomCode: string;
   action: 'correct' | 'pass' | 'next-player' | 'timer-update';
-  payload?: any;
+  payload?: {
+    timer?: number;
+    timerActive?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface SocketEvents {
@@ -46,7 +50,7 @@ export interface SocketEvents {
   'create-room': (data: { hostName: string }) => void;
   'join-room': (data: { roomCode: string; playerName: string }) => void;
   'get-room-info': (data: { roomCode: string }) => void;
-  'start-game': (data: { roomCode: string; charades: any[] }) => void;
+  'start-game': (data: { roomCode: string; charades: Array<{ text: string; difficulty?: string }> }) => void;
   'game-action': (data: GameAction) => void;
 
   // Incoming events (server to client)

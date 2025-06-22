@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import type { SocketEvents, GameRoom, RoomCreatedData, PlayerJoinedData, GameAction } from '../types/multiplayer';
+import type { GameRoom, RoomCreatedData, PlayerJoinedData, GameAction } from '../types/multiplayer';
 
 class SocketService {
   private socket: Socket | null = null;
@@ -110,7 +110,7 @@ class SocketService {
     });
   }
 
-  startGame(roomCode: string, charades: any[]) {
+  startGame(roomCode: string, charades: Array<{ text: string; difficulty?: string }>) {
     if (this.socket) {
       this.socket.emit('start-game', { roomCode, charades });
     }

@@ -11,7 +11,6 @@ const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
   const { roomCode } = useParams<{ roomCode: string }>();
   const navigate = useNavigate();
   const [playerName, setPlayerName] = useState('');
-  const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
@@ -60,8 +59,8 @@ const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
     try {
       await socketService.joinRoom(roomCode, playerName.trim());
       onJoinSuccess(roomCode);
-    } catch (error: any) {
-      setError(error.message || 'Failed to join room');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to join room');
     } finally {
       setIsJoining(false);
     }
@@ -182,9 +181,9 @@ const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
           <button
             onClick={connectToServer}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-            disabled={isConnecting}
+            disabled={connectionStatus === 'connecting'}
           >
-            {isConnecting ? 'Reconnecting...' : 'Retry Connection'}
+            {connectionStatus === 'connecting' ? 'Reconnecting...' : 'Retry Connection'}
           </button>
         </div>
       )}
