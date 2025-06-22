@@ -8,12 +8,27 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/${GEMIN
  */
 function getCharadePrompt(context, numCards, difficulty, customPrompt) {
   return `
-You are an AI assistant for a charades game. Given the following context, generate a list of ${numCards} charade game ideas (phrases, names, or concepts) that are relevant, fun, and challenging for players. All items must be suitable for the "${difficulty}" difficulty level. Only return a JSON array of objects with "text" and "difficulty" fields. Do NOT include any Markdown or code block formatting, just the raw JSON array.
+You are an AI assistant for a charades game. Generate ${numCards} charade game items based on the provided context. Each item should be actable/mimeable for charades gameplay.
 
 Context:
 ${context}
 
-${customPrompt ? "Instructions: " + customPrompt : ""}
+${customPrompt ? "Additional Instructions: " + customPrompt : ""}
+
+Difficulty Guidelines:
+- Easy: Simple actions, common objects, basic emotions (1-2 words)
+- Medium: Popular phrases, well-known people/places, everyday activities (2-3 words)  
+- Hard: Complex concepts, idioms, specific references, longer phrases (3+ words)
+
+Requirements:
+- All items must be suitable for "${difficulty}" difficulty
+- Items should be diverse (mix of actions, objects, people, places, emotions, etc.)
+- Avoid items that are impossible to act out physically
+- Make items contextually relevant to the provided theme
+- Return ONLY a valid JSON array with objects containing "text" and "difficulty" fields
+- No code blocks, no markdown formatting
+
+Example format: [{"text": "Traffic jam", "difficulty": "medium"}, {"text": "Buying suya", "difficulty": "easy"}]
 `;
 }
 
@@ -43,8 +58,8 @@ async function handler(req, res) {
   const diff = diffLevels.includes(difficulty) ? difficulty : "medium";
 
   try {
-    // If DUMMY_GEMINI is set or in dev mode, return dummy data
-    if (!process.env.NODE_ENV || process.env.NODE_ENV === "development" || process.env.DUMMY_GEMINI === "true") {
+    // If DUMMY_GEMINI is explicitly set to true, return dummy data
+    if (process.env.DUMMY_GEMINI === "true") {
       const dummyItems = Array.from({ length: Math.min(n, 20) }, (_, i) => ({
         text: `Lagos Traffic Jam ${i + 1}`,
         difficulty: diff
@@ -106,7 +121,7 @@ async function handler(req, res) {
     res.status(200).json({ items, debug: { text, geminiData } });
   } catch (err) {
     console.error(err);
-    if (!process.env.NODE_ENV || process.env.NODE_ENV === "development" || process.env.DUMMY_GEMINI === "true") {
+    if (process.env.DUMMY_GEMINI === "true") {
       const fallbackDummyItems = Array.from({ length: Math.min(n, 20) }, (_, i) => ({
         text: `Fallback Lagos Charade ${i + 1}`,
         difficulty: diff

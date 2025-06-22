@@ -5,7 +5,7 @@ import ContextModal from "./components/ContextModal";
 import WelcomeScreen from "./screens/WelcomeScreen";
 import { generateCharadesAI } from "./utils/textProcessing/generateCharadesAI";
 import type { CharadeAIItem } from "./utils/textProcessing/generateCharadesAI";
-import { SquareStack, SquareDashed } from "lucide-react";
+import { SquareStack, SquareDashed, ArrowRight } from "lucide-react";
 import GameSummary from "./screens/GameSummary";
 import { useGameStore } from "./context/gameStore";
 import './App.css' // Import your CSS file here
@@ -152,49 +152,90 @@ function App() {
         Context-Aware Charades
       </h1>
       <div className="w-full h-full max-w-4xl flex flex-col gap-8">
-        {/* Card area */}
-        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
-          {/* Card stack (left) */}
-          <div className="flex flex-col items-center flex-1 min-w-[120px]">
-            <div className="mb-2 text-indigo-700 font-semibold flex items-center gap-1">
-              <SquareStack className="w-5 h-5" />
-              Card Stack
-            </div>
-            <div className="relative h-[120px] w-[120px] flex items-end justify-center">
-              {charades.slice(currentCardIdx + 1).slice(0, 5).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute left-0 right-0 mx-auto bg-indigo-200 border border-indigo-300 rounded-xl shadow h-[100px] w-[100px] transition-all"
-                  style={{
-                    bottom: `${i * 8}px`,
-                    zIndex: 1 + i,
-                    opacity: 0.7 - i * 0.1,
-                    transform: `scale(${1 - i * 0.05})`,
-                  }}
-                />
-              ))}
-              {charades.length - currentCardIdx - 1 === 0 && (
-                <div className="absolute left-0 right-0 mx-auto bg-gray-100 border border-gray-200 rounded-xl shadow h-[100px] w-[100px] flex items-center justify-center text-gray-400 text-xs">
-                  No more cards
-                </div>
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              {charades.length - currentCardIdx - 1} left
-            </div>
+        {/* Enhanced Card Game Area */}
+        <div className="bg-white rounded-3xl shadow-xl p-8 border border-indigo-100 w-full max-w-5xl mx-auto">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-indigo-700 flex items-center justify-center gap-2">
+              <span role="img" aria-label="cards">🃏</span>
+              Game Cards
+            </h2>
+            <p className="text-gray-600 text-sm mt-1">Stack → Active Card</p>
           </div>
-          {/* Active card (right) */}
-          <div className="flex flex-col items-center flex-1 min-w-[220px]">
-            <div className="mb-2 text-indigo-700 font-semibold flex items-center gap-1">
-              <SquareDashed className="w-5 h-5" />
-              Active Card
+          
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-12">
+            {/* Card Stack */}
+            <div className="flex flex-col items-center">
+              <div className="mb-4 text-indigo-700 font-semibold flex items-center gap-2">
+                <SquareStack className="w-6 h-6" />
+                <span>Card Stack</span>
+                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-bold">
+                  {charades.length - currentCardIdx - 1}
+                </span>
+              </div>
+              <div className="relative h-[160px] w-[140px] flex items-end justify-center">
+                {charades.slice(currentCardIdx + 1).slice(0, 5).map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute left-0 right-0 mx-auto bg-gradient-to-br from-indigo-300 to-violet-300 border-2 border-indigo-400 rounded-2xl shadow-lg h-[120px] w-[120px] transition-all duration-300 hover:scale-105"
+                    style={{
+                      bottom: `${i * 12}px`,
+                      zIndex: 5 - i,
+                      opacity: 0.8 - i * 0.15,
+                      transform: `scale(${1 - i * 0.08}) rotate(${(i - 2) * 2}deg)`,
+                    }}
+                  >
+                    <div className="h-full w-full flex items-center justify-center">
+                      <div className="text-white text-xs font-bold opacity-70">CARD</div>
+                    </div>
+                  </div>
+                ))}
+                {charades.length - currentCardIdx - 1 === 0 && (
+                  <div className="absolute left-0 right-0 mx-auto bg-gray-100 border-2 border-gray-200 rounded-2xl shadow h-[120px] w-[120px] flex items-center justify-center text-gray-400 text-sm">
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">📭</div>
+                      <div className="text-xs">Empty</div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="bg-white border-2 border-dashed border-violet-400 rounded-xl shadow-lg p-8 text-2xl font-bold text-violet-700 min-h-[100px] flex items-center justify-center w-full max-w-md transition-all">
-              {charades.length === 0
-                ? "No cards available"
-                : currentCardIdx < charades.length
-                  ? charades[currentCardIdx].text
-                  : "All cards played. Click Next to see results."}
+
+            {/* Animated Arrow */}
+            <div className="flex items-center">
+              <div className="bg-gradient-to-r from-violet-500 to-indigo-500 text-white p-3 rounded-full shadow-lg animate-pulse">
+                <ArrowRight className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Active Card */}
+            <div className="flex flex-col items-center">
+              <div className="mb-4 text-violet-700 font-semibold flex items-center gap-2">
+                <SquareDashed className="w-6 h-6" />
+                <span>Active Card</span>
+              </div>
+              <div 
+                key={currentCardIdx} 
+                className="bg-gradient-to-br from-white to-violet-50 border-3 border-violet-400 rounded-2xl shadow-2xl p-8 min-h-[160px] w-[280px] flex items-center justify-center transition-all duration-500 transform hover:scale-105 animate-in slide-in-from-left-5"
+              >
+                <div className="text-center">
+                  {charades.length === 0 ? (
+                    <div className="text-gray-500">
+                      <div className="text-4xl mb-2">🎭</div>
+                      <div className="text-lg">No cards available</div>
+                    </div>
+                  ) : currentCardIdx < charades.length ? (
+                    <div className="text-2xl lg:text-3xl font-bold text-violet-700 leading-tight">
+                      {charades[currentCardIdx].text}
+                    </div>
+                  ) : (
+                    <div className="text-violet-600">
+                      <div className="text-4xl mb-2">🏁</div>
+                      <div className="text-lg font-semibold">All cards completed!</div>
+                      <div className="text-sm mt-1">Ready for results</div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

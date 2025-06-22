@@ -51,21 +51,21 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard }) => {
     if (players.length > 0) {
       incrementScore(players[currentPlayerIdx].id, 1);
     }
-    setTurnEnded(true);
-    setTimerActive(false);
+    // Timer continues, just advance to next card
+    if (onNextCard) onNextCard();
   };
 
   const handlePass = () => {
-    setTurnEnded(true);
-    setTimerActive(false);
+    // No scoring, but timer continues and advance to next card
+    if (onNextCard) onNextCard();
   };
 
   const handleNext = () => {
     setTurnEnded(false);
     setTimer(60);
     nextPlayer();
-    if (onNextCard) onNextCard();
-    // Optionally: nextRound() if all players have played
+    // Reset timer for next player's turn
+    setTimerActive(false);
   };
 
   const currentPlayer = players[currentPlayerIdx];
@@ -132,7 +132,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard }) => {
         <button
           className="px-5 py-2 bg-green-500 text-white font-bold rounded-xl shadow hover:bg-green-600 transition flex items-center gap-2 disabled:opacity-50"
           onClick={handleCorrect}
-          disabled={!timerActive || turnEnded}
+          disabled={!timerActive}
         >
           <Check className="w-5 h-5" />
           Correct
@@ -140,7 +140,7 @@ const RoundManager: React.FC<RoundManagerProps> = ({ onNextCard }) => {
         <button
           className="px-5 py-2 bg-yellow-400 text-white font-bold rounded-xl shadow hover:bg-yellow-500 transition flex items-center gap-2 disabled:opacity-50"
           onClick={handlePass}
-          disabled={!timerActive || turnEnded}
+          disabled={!timerActive}
         >
           <SkipForward className="w-5 h-5" />
           Pass

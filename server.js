@@ -1,6 +1,10 @@
 import express from "express";
 import bodyParser from "body-parser";
+import { config } from "dotenv";
 import handler from "./api/generate-charades.js";
+
+// Load environment variables
+config();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -17,6 +21,16 @@ app.use((req, res, next) => {
   } else {
     next();
   }
+});
+
+// Debug endpoint
+app.get("/api/debug", (req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV,
+    DUMMY_GEMINI: process.env.DUMMY_GEMINI,
+    GEMINI_MODEL: process.env.GEMINI_MODEL,
+    HAS_API_KEY: !!process.env.GEMINI_API_KEY
+  });
 });
 
 // Express adapter for generate-charades
