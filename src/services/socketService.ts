@@ -8,8 +8,12 @@ class SocketService {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.socket = io(process.env.VITE_BACKEND_URL || 'http://localhost:3001', {
-          transports: ['websocket', 'polling']
+        this.socket = io(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001', {
+          transports: ['websocket', 'polling'],
+          timeout: 45000,           // 45 seconds connection timeout
+          reconnection: true,       // Enable automatic reconnection
+          reconnectionAttempts: 5,  // Try to reconnect 5 times
+          reconnectionDelay: 2000   // Wait 2 seconds between attempts
         });
 
         this.socket.on('connect', () => {
@@ -69,20 +73,24 @@ class SocketService {
         return;
       }
 
+      console.log(`SocketService: 🚀 Joining room ${roomCode} as ${playerName} with socket ${this.socket.id}`);
       this.socket.emit('join-room', { roomCode, playerName });
       
       this.socket.once('player-joined', (data: PlayerJoinedData) => {
+        console.log(`SocketService: ✅ Successfully joined room ${roomCode}:`, data);
         resolve(data);
       });
 
       this.socket.once('join-error', (error: { message: string }) => {
+        console.error(`SocketService: ❌ Failed to join room ${roomCode}:`, error);
         reject(new Error(error.message));
       });
 
-      // Timeout after 10 seconds
+      // Timeout after 15 seconds
       setTimeout(() => {
+        console.error(`SocketService: ⏱️ Join room ${roomCode} timeout`);
         reject(new Error('Join room timeout'));
-      }, 10000);
+      }, 15000);
     });
   }
 
@@ -110,6 +118,49 @@ class SocketService {
     });
   }
 
+  // Rejoin a room (for when user navigates back to lobby)
+  rejoinRoom(roomCode: string, playerName?: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Not connected to server'));
+        return;
+      }
+
+      console.log(`SocketService: 🔄 Rejoining room ${roomCode} as ${playerName || 'unknown'} with socket ${this.socket.id}`);
+      
+      // Clear any existing listeners for this rejoin attempt
+      this.socket.off('rejoin-success');
+      this.socket.off('rejoin-error');
+      
+      // Set up one-time listeners with unique handler
+      const timeoutId = setTimeout(() => {
+        this.socket?.off('rejoin-success', successHandler);
+        this.socket?.off('rejoin-error', errorHandler);
+        console.error(`SocketService: ⏱️ Rejoin room ${roomCode} timeout`);
+        reject(new Error('Rejoin timeout'));
+      }, 10000);
+      
+      const successHandler = () => {
+        clearTimeout(timeoutId);
+        this.socket?.off('rejoin-error', errorHandler);
+        console.log('SocketService: ✅ Successfully rejoined room:', roomCode);
+        resolve();
+      };
+      
+      const errorHandler = (error: { message: string }) => {
+        clearTimeout(timeoutId);
+        this.socket?.off('rejoin-success', successHandler);
+        console.error(`SocketService: ❌ Failed to rejoin room ${roomCode}:`, error);
+        reject(new Error(error.message));
+      };
+      
+      this.socket.once('rejoin-success', successHandler);
+      this.socket.once('rejoin-error', errorHandler);
+      
+      this.socket.emit('rejoin-room', { roomCode, playerName });
+    });
+  }
+
   startGame(roomCode: string, charades: Array<{ text: string; difficulty?: string }>) {
     if (this.socket) {
       this.socket.emit('start-game', { roomCode, charades });
@@ -125,7 +176,13 @@ class SocketService {
   // Event listeners
   onPlayerJoined(callback: (data: PlayerJoinedData) => void) {
     if (this.socket) {
-      this.socket.on('player-joined', callback);
+      console.log('SocketService: ✅ Setting up player-joined listener for socket:', this.socket.id);
+      this.socket.on('player-joined', (data) => {
+        console.log('SocketService: ✅ RECEIVED player-joined RAW event:', data);
+        callback(data);
+      });
+    } else {
+      console.error('SocketService: ❌ Cannot set up player-joined listener - no socket connection');
     }
   }
 
@@ -144,6 +201,18 @@ class SocketService {
   onGameStateUpdated(callback: (data: { room: GameRoom }) => void) {
     if (this.socket) {
       this.socket.on('game-state-updated', callback);
+    }
+  }
+
+  onRoomClosed(callback: (data: { message: string }) => void) {
+    if (this.socket) {
+      this.socket.on('room-closed', callback);
+    }
+  }
+
+  onPlayerRejoined(callback: (data: { room: GameRoom }) => void) {
+    if (this.socket) {
+      this.socket.on('player-rejoined', callback);
     }
   }
 
@@ -169,6 +238,18 @@ class SocketService {
   offGameStateUpdated() {
     if (this.socket) {
       this.socket.off('game-state-updated');
+    }
+  }
+
+  offRoomClosed() {
+    if (this.socket) {
+      this.socket.off('room-closed');
+    }
+  }
+
+  offPlayerRejoined() {
+    if (this.socket) {
+      this.socket.off('player-rejoined');
     }
   }
 

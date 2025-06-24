@@ -15,7 +15,10 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  pingTimeout: 7200000, // 2 hours (2 * 60 * 60 * 1000)
+  pingInterval: 30000,   // 30 seconds
+  connectTimeout: 45000  // 45 seconds
 });
 
 const port = process.env.PORT || 3001;
@@ -71,24 +74,93 @@ const joinRoom = (roomCode, socketId, playerName) => {
   return room;
 };
 
-const removePlayerFromRoom = (socketId) => {
+// Store disconnected players with a grace period
+const disconnectedPlayers = new Map(); // socketId -> { roomCode, player, timestamp, timeoutId }
+
+const removePlayerFromRoom = (socketId, immediate = false) => {
   for (const [roomCode, room] of gameRooms.entries()) {
     const playerIndex = room.players.findIndex(p => p.id === socketId);
     if (playerIndex !== -1) {
-      room.players.splice(playerIndex, 1);
+      const player = room.players[playerIndex];
       
-      // If host left and room not empty, make first player host
-      if (room.hostSocketId === socketId && room.players.length > 0) {
-        room.hostSocketId = room.players[0].id;
-        room.players[0].isHost = true;
-      }
-      
-      // If room is empty, delete it
-      if (room.players.length === 0) {
+      // If host left, kick all players and close room immediately
+      if (room.hostSocketId === socketId) {
+        console.log(`Host left room ${roomCode}, closing room and kicking all players`);
+        
+        // Notify all remaining players that the room is closed
+        io.to(roomCode).emit('room-closed', { 
+          message: 'Host has left the game. You have been disconnected.' 
+        });
+        
+        // Delete the room
         gameRooms.delete(roomCode);
+        
+        return { room: null, roomCode, hostLeft: true };
       }
       
-      return { room, roomCode };
+      // For non-host players, give them a grace period to reconnect (unless immediate removal)
+      if (!immediate) {
+        // Longer grace period during active games
+        const gracePeriodMs = room.gameState.isStarted ? 120000 : 30000; // 2 minutes for active games, 30s for lobby
+        const gracePeriodSec = gracePeriodMs / 1000;
+        console.log(`⏰ GRACE PERIOD: ${player.name} (${socketId}) disconnected from ${roomCode}, giving ${gracePeriodSec}s to reconnect`);
+        
+        // Set timeout to remove player after grace period
+        const timeoutId = setTimeout(() => {
+          const disconnectedInfo = disconnectedPlayers.get(socketId);
+          if (disconnectedInfo) {
+            // Player didn't reconnect, remove them permanently
+            console.log(`❌ TIMEOUT: Removing ${disconnectedInfo.player.name} from ${roomCode} after grace period`);
+            disconnectedPlayers.delete(socketId);
+            
+            const currentRoom = gameRooms.get(roomCode);
+            if (currentRoom) {
+              // Find player by name (since socket ID might have changed)
+              const currentPlayerIndex = currentRoom.players.findIndex(p => p.name === disconnectedInfo.player.name);
+              if (currentPlayerIndex !== -1) {
+                currentRoom.players.splice(currentPlayerIndex, 1);
+                
+                // Notify remaining players
+                io.to(roomCode).emit('player-left', { room: currentRoom });
+                
+                // If room is empty, delete it (but only if game hasn't started)
+                if (currentRoom.players.length === 0) {
+                  if (!currentRoom.gameState.isStarted) {
+                    gameRooms.delete(roomCode);
+                    console.log(`🗑️ Deleted empty room ${roomCode}`);
+                  } else {
+                    console.log(`🎮 Keeping empty room ${roomCode} - game in progress`);
+                  }
+                }
+              }
+            }
+          }
+        }, gracePeriodMs); // Variable grace period
+        
+        disconnectedPlayers.set(socketId, {
+          roomCode,
+          player: { ...player },
+          timestamp: Date.now(),
+          timeoutId
+        });
+        
+        return { room, roomCode, gracePeriod: true };
+      } else {
+        // Immediate removal
+        room.players.splice(playerIndex, 1);
+        
+        // If room is empty, delete it (but only if game hasn't started)
+        if (room.players.length === 0) {
+          if (!room.gameState.isStarted) {
+            gameRooms.delete(roomCode);
+            console.log(`🗑️ Deleted empty room ${roomCode} (immediate)`);
+          } else {
+            console.log(`🎮 Keeping empty room ${roomCode} - game in progress (immediate)`);
+          }
+        }
+        
+        return { room, roomCode };
+      }
     }
   }
   return null;
@@ -110,28 +182,42 @@ io.on('connection', (socket) => {
       room
     });
     
-    console.log(`Room created: ${room.id} by ${hostName}`);
+    console.log(`Room created: ${room.id} by ${hostName} (socket: ${socket.id})`);
+    console.log(`Host ${socket.id} joined Socket.io room ${room.id}`);
   });
 
   // Join an existing room
   socket.on('join-room', (data) => {
     const { roomCode, playerName } = data;
+    console.log(`🚀 JOIN REQUEST: ${playerName} (${socket.id}) wants to join room ${roomCode}`);
+    
     const room = joinRoom(roomCode, socket.id, playerName);
     
     if (!room) {
+      console.log(`❌ JOIN FAILED: Room ${roomCode} not found`);
       socket.emit('join-error', { message: 'Room not found' });
       return;
     }
     
     socket.join(roomCode);
+    console.log(`✅ SOCKET JOINED: ${socket.id} joined Socket.io room ${roomCode}`);
     
     // Notify all players in room
-    io.to(roomCode).emit('player-joined', {
+    const eventData = {
       room,
       newPlayer: room.players.find(p => p.id === socket.id)
+    };
+    
+    console.log(`📡 EMITTING player-joined to room ${roomCode}:`);
+    console.log(`   - Room has ${room.players.length} players:`);
+    room.players.forEach((player, idx) => {
+      console.log(`     ${idx + 1}. ${player.name} (${player.id}) ${player.isHost ? '[HOST]' : ''}`);
     });
     
-    console.log(`${playerName} joined room ${roomCode}`);
+    io.to(roomCode).emit('player-joined', eventData);
+    
+    console.log(`${playerName} (socket: ${socket.id}) joined room ${roomCode}`);
+    console.log(`Emitting player-joined to room ${roomCode} with ${room.players.length} players`);
   });
 
   // Get room info
@@ -144,6 +230,90 @@ io.on('connection', (socket) => {
     } else {
       socket.emit('room-not-found');
     }
+  });
+
+  // Rejoin a room (when user navigates back to lobby or reconnects)
+  socket.on('rejoin-room', (data) => {
+    const { roomCode, playerName } = data;
+    console.log(`🔄 REJOIN REQUEST: ${playerName} (${socket.id}) wants to rejoin room ${roomCode}`);
+    
+    const room = gameRooms.get(roomCode);
+    
+    if (!room) {
+      console.log(`❌ REJOIN FAILED: Room ${roomCode} not found`);
+      socket.emit('rejoin-error', { message: 'Room not found' });
+      return;
+    }
+    
+    // Check if this socket is already in the room
+    let existingPlayer = room.players.find(p => p.id === socket.id);
+    
+    if (existingPlayer) {
+      // Player already exists with current socket ID, just join the socket room
+      socket.join(roomCode);
+      socket.emit('rejoin-success');
+      console.log(`✅ REJOIN: ${socket.id} already in room ${roomCode}, joined Socket.io room`);
+      return;
+    }
+    
+    if (playerName) {
+      // Try to find player by name (for reconnection scenarios)
+      existingPlayer = room.players.find(p => p.name === playerName);
+      if (existingPlayer) {
+        // Update the player's socket ID and rejoin
+        const oldSocketId = existingPlayer.id;
+        console.log(`🔄 RECONNECTING: ${playerName} changing socket ID from ${oldSocketId} to ${socket.id}`);
+        
+        // Clear any grace period for the old socket
+        const disconnectedInfo = disconnectedPlayers.get(oldSocketId);
+        if (disconnectedInfo && disconnectedInfo.timeoutId) {
+          clearTimeout(disconnectedInfo.timeoutId);
+          console.log(`⏹️ Cleared grace period timeout for ${playerName} (socket ID update)`);
+        }
+        disconnectedPlayers.delete(oldSocketId);
+        
+        // Update socket ID and join room
+        existingPlayer.id = socket.id;
+        socket.join(roomCode);
+        socket.emit('rejoin-success');
+        
+        // Notify all players about the updated room state
+        io.to(roomCode).emit('player-rejoined', { room });
+        console.log(`✅ Player ${playerName} (${socket.id}) reconnected to room ${roomCode}`);
+        return;
+      }
+      
+      // Player not found in room, but check if they're in disconnected list
+      for (const [oldSocketId, disconnectedInfo] of disconnectedPlayers.entries()) {
+        if (disconnectedInfo.roomCode === roomCode && disconnectedInfo.player.name === playerName) {
+          console.log(`🔄 RECOVERING: ${playerName} reconnecting after disconnection`);
+          
+          // Clear the grace period timeout
+          if (disconnectedInfo.timeoutId) {
+            clearTimeout(disconnectedInfo.timeoutId);
+            console.log(`⏹️ Cleared grace period timeout for ${playerName}`);
+          }
+          
+          // Add player back to room with new socket ID
+          const restoredPlayer = { ...disconnectedInfo.player, id: socket.id };
+          room.players.push(restoredPlayer);
+          
+          // Clear from disconnected list
+          disconnectedPlayers.delete(oldSocketId);
+          
+          socket.join(roomCode);
+          socket.emit('rejoin-success');
+          
+          // Notify all players about the reconnection
+          io.to(roomCode).emit('player-joined', { room, newPlayer: restoredPlayer });
+          console.log(`✅ Player ${playerName} (${socket.id}) recovered and rejoined room ${roomCode}`);
+          return;
+        }
+      }
+    }
+    
+    console.log(`❌ REJOIN FAILED: Player ${playerName} not found in room ${roomCode}`);
+    socket.emit('rejoin-error', { message: 'Player not found in room' });
   });
 
   // Start game
@@ -212,13 +382,22 @@ io.on('connection', (socket) => {
 
   // Handle disconnection
   socket.on('disconnect', () => {
+    console.log(`🔌 User disconnected: ${socket.id}`);
     const result = removePlayerFromRoom(socket.id);
     if (result) {
-      const { room, roomCode } = result;
-      io.to(roomCode).emit('player-left', { room });
-      console.log(`Player left room ${roomCode}`);
+      const { room, roomCode, hostLeft, gracePeriod } = result;
+      
+      if (hostLeft) {
+        console.log(`Host disconnected from room ${roomCode}, room closed`);
+      } else if (room && !gracePeriod) {
+        // Only emit player-left if it's immediate removal
+        io.to(roomCode).emit('player-left', { room });
+        console.log(`Player immediately removed from room ${roomCode}`);
+      } else if (gracePeriod) {
+        console.log(`Player temporarily disconnected from room ${roomCode}, grace period active`);
+        // Don't emit player-left yet, they might reconnect
+      }
     }
-    console.log(`User disconnected: ${socket.id}`);
   });
 });
 

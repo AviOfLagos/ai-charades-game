@@ -1,23 +1,111 @@
 import React, { useState } from "react";
-import { Users, Hash, Gamepad2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Users, Hash, Gamepad2, ArrowLeft } from "lucide-react";
+import { socketService } from "../services/socketService";
 
-interface WelcomeScreenProps {
-  onStartSolo: () => void;
-  onCreateRoom: () => void;
-  onJoinRoom: () => void;
-}
-
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartSolo, onCreateRoom, onJoinRoom }) => {
+const WelcomeScreen: React.FC = () => {
+  const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle solo game start
+  const handleStartSolo = () => {
+    navigate('/charades/solo');
+  };
+
+  // Handle create room
+  const handleCreateRoom = async () => {
+    console.log('Create room button clicked!');
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Connecting to socket...');
+      await socketService.connect();
+      console.log('Socket connected, creating room...');
+      
+      const hostName = `Host_${Math.random().toString(36).substr(2, 5)}`;
+      const roomData = await socketService.createRoom(hostName);
+      
+      console.log('Room created:', roomData);
+      
+      // Store multiplayer data for the lobby
+      const multiplayerData = {
+        gameMode: 'multiplayer',
+        isHost: true,
+        room: roomData.room,
+        roomCode: roomData.roomCode
+      };
+      console.log('WelcomeScreen: Storing multiplayer data:', multiplayerData);
+      sessionStorage.setItem('multiplayerData', JSON.stringify(multiplayerData));
+      
+      navigate(`/charades/lobby/${roomData.roomCode}`);
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to create room: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle join room
+  const handleJoinRoom = async (roomCode: string) => {
+    console.log('Join room button clicked!', roomCode);
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Connecting to socket for joining...');
+      await socketService.connect();
+      console.log('Socket connected, joining room...');
+      
+      const playerName = `Player_${Math.random().toString(36).substr(2, 5)}`;
+      const joinData = await socketService.joinRoom(roomCode, playerName);
+      
+      console.log('Joined room:', joinData);
+      
+      // Store multiplayer data for the lobby
+      sessionStorage.setItem('multiplayerData', JSON.stringify({
+        gameMode: 'multiplayer',
+        isHost: false,
+        room: joinData.room,
+        roomCode: roomCode
+      }));
+      
+      navigate(`/charades/lobby/${roomCode}`);
+    } catch (error) {
+      console.error('Failed to join room:', error);
+      setError(error instanceof Error ? error.message : 'Failed to join room. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleJoinWithCode = () => {
     if (joinCode.trim()) {
-      onJoinRoom();
+      handleJoinRoom(joinCode.trim());
     }
+  };
+
+  const handleBack = () => {
+    navigate('/');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center p-6 md:p-16 lg:p-20">
+      {/* Back Button */}
+      <div className="w-full max-w-4xl mb-4">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-300"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+      </div>
+
       {/* Header */}
       <div className="text-center mb-12">
         <div className="text-6xl mb-6">🎭</div>
@@ -41,7 +129,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartSolo, onCreateRoom
             Practice alone or with friends locally. Host your own game setup.
           </p>
           <button
-            onClick={onStartSolo}
+            onClick={handleStartSolo}
             className="w-full px-6 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-bold rounded-xl shadow-lg hover:from-indigo-600 hover:to-violet-600 transition-all duration-300 flex items-center justify-center gap-2"
           >
             <Gamepad2 className="w-5 h-5" />
@@ -57,11 +145,21 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartSolo, onCreateRoom
             Host a multiplayer game. Share a room code for others to join.
           </p>
           <button
-            onClick={onCreateRoom}
-            className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 flex items-center justify-center gap-2"
+            onClick={handleCreateRoom}
+            disabled={loading}
+            className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Users className="w-5 h-5" />
-            Create Room
+            {loading ? (
+              <>
+                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                Creating...
+              </>
+            ) : (
+              <>
+                <Users className="w-5 h-5" />
+                Create Room
+              </>
+            )}
           </button>
         </div>
 
@@ -84,15 +182,36 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartSolo, onCreateRoom
             />
             <button
               onClick={handleJoinWithCode}
-              disabled={!joinCode.trim()}
+              disabled={!joinCode.trim() || loading}
               className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-lg hover:from-pink-600 hover:to-rose-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Hash className="w-5 h-5" />
-              Join Game
+              {loading ? (
+                <>
+                  <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <Hash className="w-5 h-5" />
+                  Join Game
+                </>
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="w-full max-w-4xl mb-6">
+          <div className="bg-red-900/30 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-300 font-semibold text-center flex items-center justify-center gap-2">
+              <span>⚠️</span>
+              {error}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Features */}
       <div className="bg-gradient-to-r from-purple-800/20 to-indigo-800/20 backdrop-blur-lg rounded-2xl p-6 border border-purple-500/20 max-w-4xl w-full">

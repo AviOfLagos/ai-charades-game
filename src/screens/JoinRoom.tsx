@@ -3,11 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { socketService } from '../services/socketService';
 import { Users, ArrowLeft, Wifi, WifiOff } from 'lucide-react';
 
-interface JoinRoomProps {
-  onJoinSuccess: (roomCode: string) => void;
-}
-
-const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
+const JoinRoom: React.FC = () => {
   const { roomCode } = useParams<{ roomCode: string }>();
   const navigate = useNavigate();
   const [playerName, setPlayerName] = useState('');
@@ -18,8 +14,10 @@ const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
   useEffect(() => {
     connectToServer();
     
+    // Don't disconnect socket when JoinRoom unmounts
+    // The GameLobby will manage the socket connection
     return () => {
-      socketService.disconnect();
+      // socketService.disconnect(); // Commented out to preserve connection
     };
   }, []);
 
@@ -57,8 +55,17 @@ const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
     setError(null);
 
     try {
-      await socketService.joinRoom(roomCode, playerName.trim());
-      onJoinSuccess(roomCode);
+      const joinData = await socketService.joinRoom(roomCode, playerName.trim());
+      
+      // Store multiplayer data for the lobby
+      sessionStorage.setItem('multiplayerData', JSON.stringify({
+        gameMode: 'multiplayer',
+        isHost: false,
+        room: joinData.room,
+        roomCode: roomCode
+      }));
+      
+      navigate(`/charades/lobby/${roomCode}`);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Failed to join room');
     } finally {
@@ -67,7 +74,7 @@ const JoinRoom: React.FC<JoinRoomProps> = ({ onJoinSuccess }) => {
   };
 
   const handleGoBack = () => {
-    navigate('/');
+    navigate('/charades');
   };
 
   const getConnectionStatusDisplay = () => {

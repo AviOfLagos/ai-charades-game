@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Play, Lock, Users, Clock, Target, Star } from "lucide-react";
 
 interface Game {
@@ -11,10 +12,6 @@ interface Game {
   icon: string;
   active: boolean;
   comingSoon?: boolean;
-}
-
-interface GameSuiteProps {
-  onSelectGame: (gameId: string) => void;
 }
 
 const GAMES: Game[] = [
@@ -85,7 +82,14 @@ const GAMES: Game[] = [
   },
 ];
 
-const GameSuite: React.FC<GameSuiteProps> = ({ onSelectGame }) => {
+const GameSuite: React.FC = () => {
+  const navigate = useNavigate();
+  
+  const handleSelectGame = (gameId: string) => {
+    if (gameId === "context-charades") {
+      navigate("/charades");
+    }
+  };
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "Easy": return "text-green-400 bg-green-500/20";
@@ -120,7 +124,7 @@ const GameSuite: React.FC<GameSuiteProps> = ({ onSelectGame }) => {
                 ? "border-purple-500/40 hover:border-purple-400/60 hover:shadow-purple-500/20 hover:shadow-xl transform hover:scale-105 cursor-pointer"
                 : "border-gray-600/30 opacity-75"
             }`}
-            onClick={() => game.active && onSelectGame(game.id)}
+            onClick={() => game.active && handleSelectGame(game.id)}
           >
             {/* Lock Icon for Inactive Games */}
             {!game.active && (
@@ -173,7 +177,7 @@ const GameSuite: React.FC<GameSuiteProps> = ({ onSelectGame }) => {
               disabled={!game.active}
               onClick={(e) => {
                 e.stopPropagation();
-                if (game.active) onSelectGame(game.id);
+                if (game.active) handleSelectGame(game.id);
               }}
             >
               {game.active ? (
